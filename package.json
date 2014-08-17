@@ -1,0 +1,33 @@
+{
+  "name": "sb",
+  "version": "0.1.0",
+  "description": "A simple tool to benchmark a Sphinx search server.",
+  "dependencies": {
+    "async": "^0.9.0",
+    "commander": "^2.3.0",
+    "mysql": "^2.4.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jamesrwhite/sb.git"
+  },
+  "keywords": [
+    "sphinx",
+    "search",
+    "benchmark",
+    "load"
+  ],
+  "author": "James White <dev.jameswhite@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jamesrwhite/sb/issues"
+  },
+  "homepage": "https://github.com/jamesrwhite/sb",
+  "bin": {
+    "sb": "./bin/sb"
+  }
+}

@@ -1,0 +1,96 @@
+#!/usr/bin/env node
+
+var mysql = require('mysql');
+var async = require('async');
+var cli = require('commander');
+
+cli.usage('[options]')
+   .option('-h, --host <host>', 'location of the sphinx host', '127.0.0.1')
+   .option('-p, --port <port>', 'sphinx host port number', 9306)
+   .option('-q, --query <query', 'query to execute')
+   .option('-n, --connections <connections>', 'number of connections to open', 1)
+   .option('-c, --concurrency <concurrency>', 'how many concurrent queries per second', 1)
+   .version('0.1')
+   .parse(process.argv);
+
+// Check we have some arguments, otherwise show the help menu
+if (process.argv.length <= 2) {
+    cli.help();
+}
+
+// Create a connection pool to Sphinx
+var pool = mysql.createPool({
+    host: cli.host,
+    port: cli.port,
+    connections: cli.connections,
+});
+
+var count = 0;
+var start = +new Date();
+var time_between_requests = 1000;
+
+function displayResults() {
+    var end = +new Date();
+    var time_taken = (end - start) / 1000;
+
+    // Clear the terminal
+    process.stdout.write('\u001B[2J\u001B[0;0f');
+
+    console.log('\n-------------------------');
+    console.log(' Configuration');
+    console.log('-------------------------');
+    console.log(' Host:          ' + cli.host);
+    console.log(' Port:          ' + cli.port);
+    console.log(' Connections:   ' + cli.connections);
+    console.log(' Concurrency:   ' + cli.concurrency);
+    console.log('');
+
+    console.log('-------------------------');
+    console.log(' Results');
+    console.log('-------------------------');
+    console.log(' Time:          ' + time_taken + 's');
+    console.log(' Queries:       ' + count);
+    console.log(' Performance:   ' + Math.round((count / time_taken)) + ' p/s');
+}
+
+function executeLoadTest() {
+    var tasks = [];
+
+    for (var i = 0; i < cli.concurrency; i++) {
+        tasks.push(function(callback) {
+            pool.getConnection(function(pool_error, connection) {
+                if (pool_error) {
+                    callback(pool_error);
+                }
+
+                connection.query(cli.query,  function(query_error) {
+                    if (query_error) {
+                        callback(query_error);
+                    }
+
+                    callback(null, true);
+                });
+
+                connection.release();
+            });
+        });
+    }
+
+    async.parallel(tasks, function(error, results) {
+        if (error != null) {
+            console.log('Error: ', error);
+        }
+
+        count += results.length;
+    })
+
+    displayResults();
+}
+
+executeLoadTest();
+setInterval(executeLoadTest, time_between_requests);
+
+process.on('SIGINT', function() {
+    displayResults();
+    process.exit();
+});
