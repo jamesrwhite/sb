@@ -37,6 +37,7 @@ Todo:
 - Better checking of what options are passed
 - Fork multiple processes?
 - Allow for running multiple queries, using a text file input like `siege` perhaps?
+- Release to npm
 
 License
 --------
