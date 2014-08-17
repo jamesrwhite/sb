@@ -3,6 +3,15 @@ sb
 
 A simple tool to benchmark a Sphinx search server.
 
+Installation
+------------
+
+````
+git clone https://github.com/jamesrwhite/sb.git
+cd sb
+npm install -g .
+````
+
 Usage
 ------
 
