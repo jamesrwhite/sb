@@ -10,6 +10,26 @@ Usage
 sb -h localhost -p 9306 -q "select * from test1 where match('test')" -n 1000 -c 2500
 ````
 
+Output
+------
+
+````
+-------------------------
+ Configuration
+-------------------------
+ Host:          localhost
+ Port:          9306
+ Connections:   1000
+ Concurrency:   2500
+
+-------------------------
+ Results
+-------------------------
+ Time:          13.201s
+ Queries:       25000
+ Performance:   1894 p/s
+````
+
 Todo:
 ------
 
