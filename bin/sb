@@ -2,6 +2,7 @@
 
 var mysql = require('mysql');
 var cli = require('commander');
+var pkg = require('../package.json');
 var executeLoadTest = require('../lib/execute');
 var displayResults = require('../lib/results');
 
@@ -15,7 +16,7 @@ cli.usage('[options]')
    .option('-q, --query <query', 'query to execute')
    .option('-n, --connections <connections>', 'number of connections to open', 1)
    .option('-c, --concurrency <concurrency>', 'how many concurrent queries per second', 1)
-   .version('0.1.1');
+   .version(pkg.version);
 
     cli.parse(process.argv);
 
