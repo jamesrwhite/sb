@@ -3,6 +3,7 @@
 var cli = require('commander');
 var cluster = require('cluster');
 var os = require('os');
+var pkg = require('../package.json');
 var executeLoadTest = require('../lib/execute');
 var displayResults = require('../lib/results');
 
@@ -21,7 +22,7 @@ if (cluster.isMaster) {
        .option('-q, --query <query', 'query to execute')
        .option('-n, --connections <connections>', 'number of connections to open', 1)
        .option('-c, --concurrency <concurrency>', 'how many concurrent queries per second', 1)
-       .version('0.1.1');
+       .version(pkg.version);
 
     cli.parse(process.argv);
 
