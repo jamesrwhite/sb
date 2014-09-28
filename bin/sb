@@ -2,49 +2,95 @@
 
 var mysql = require('mysql');
 var cli = require('commander');
+var cluster = require('cluster');
+var os = require('os');
 var pkg = require('../package.json');
 var executeLoadTest = require('../lib/execute');
 var displayResults = require('../lib/results');
 
-var count = 0;
-var start = +new Date();
-var time_between_requests = 1000;
+// Code to run if we're in the master process
+if (cluster.isMaster) {
+    var total_count = 0;
+    var start = +new Date();
+    var time_between_requests = 1000;
 
-cli.usage('[options]')
-   .option('-h, --host <host>', 'location of the sphinx host', '127.0.0.1')
-   .option('-p, --port <port>', 'sphinx host port number', 9306)
-   .option('-q, --query <query', 'query to execute')
-   .option('-n, --connections <connections>', 'number of connections to open', 1)
-   .option('-c, --concurrency <concurrency>', 'how many concurrent queries per second', 1)
-   .version(pkg.version);
+    cli.usage('[options]')
+       .option('-h, --host <host>', 'location of the sphinx host', '127.0.0.1')
+       .option('-p, --port <port>', 'sphinx host port number', 9306)
+       .option('-q, --query <query', 'query to execute')
+       .option('-n, --connections <connections>', 'number of connections to open', 1)
+       .option('-c, --concurrency <concurrency>', 'how many concurrent queries per second', 1)
+       .version(pkg.version);
 
     cli.parse(process.argv);
 
-// Check we have some arguments, otherwise show the help menu
-if (process.argv.length <= 2) {
-    cli.help();
-}
+    // Check we have some arguments, otherwise show the help menu
+    if (process.argv.length <= 2) {
+        cli.help();
+    }
 
-// Create a connection pool to Sphinx
-var pool = mysql.createPool({
-    host: cli.host,
-    port: cli.port,
-    connections: cli.connections,
-});
+    // How many CPU's should we use?
+    var os_cpus = os.cpus().length;
+    var cpus = 1;
 
-// Execute the load test every X and display the results to the screen
-setInterval(function() {
-    executeLoadTest(pool, cli.query, count, cli.concurrency, function(updated_count) {
-      // Update the count
-      count = updated_count;
+    // Only use all the cpus if the concurrency is greater or equal to the number we have available
+    if (cli.concurrency >= os_cpus) {
+      cpus = os_cpus;
+    // Otherwise use just as many as we need
+    } else if (os_cpus >= cli.concurrency) {
+      cpus = cli.concurrency;
+    }
 
-      // Display the results
-      displayResults(start, count, cli);
+    // Fork one worker for each CPU we have
+    for (var i = 0; i < cpus; i++) {
+        var worker = cluster.fork(),
+            config = {
+                host: cli.host,
+                port: cli.port,
+                connections: cli.connections,
+                concurrency: cli.concurrency,
+                cpus: cpus
+            };
+
+        // Tell the workers to start doing something
+        worker.send({
+          config: config,
+          query: cli.query
+        });
+
+        // Update the results when we receive them from the worker
+        worker.on('message', function(updated_count) {
+            // Increment the global result count
+            total_count += updated_count;
+        });
+
+        // Display the updated result count once a second
+        setInterval(function() {
+            displayResults(start, total_count, config);
+        }, 1000);
+    }
+// Code to run from a worker
+} else {
+    // Wait until our master tells us to do something
+    process.on('message', function(msg) {
+        // Create a connection pool to Sphinx
+        var pool = mysql.createPool({
+            host: msg.config.host,
+            port: msg.config.port,
+            connections: Math.floor(msg.config.connections / msg.config.cpus),
+        });
+
+        // Execute the load test every X and display the results to the screen
+        setInterval(function() {
+            executeLoadTest(pool, msg.config, msg.query, function(result_count) {
+              // Relay the results to the master
+              process.send(result_count);
+            });
+        }, time_between_requests);
     });
-}, time_between_requests);
+}
 
 // Handle the test being halted and display the final results
 process.on('SIGINT', function() {
-    displayResults(start, count, cli);
     process.exit();
 });
